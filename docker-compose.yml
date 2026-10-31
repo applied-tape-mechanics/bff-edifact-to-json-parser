@@ -1,0 +1,45 @@
+services:
+  edifact-parser:
+    image: ghcr.io/applied-tape-mechanics/bff-edifact-to-json-parser:latest
+    build:
+      context: .
+      target: production
+    container_name: bff-edifact-parser
+    ports:
+      - "8002:8000"
+    environment:
+      - NODE_ENV=production
+      # Set to 'true' to disable the backend API and test pure client-side JavaScript VM execution
+      # - DISABLE_BACKEND=true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  healthcheck:
+    image: ghcr.io/applied-tape-mechanics/bff-container-health-check:latest
+    container_name: bff-edifact-parser-healthcheck
+    ports:
+      - "8084:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  test:
+    build:
+      context: .
+      target: test
+    container_name: bff-edifact-parser-test
+    profiles:
+      - test
+    command: npm test

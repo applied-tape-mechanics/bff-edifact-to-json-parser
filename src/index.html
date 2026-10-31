@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BFF: EDIFACT to JSON Parser</title>
+  
+  <!-- Shared Applied Tape Mechanics Design System (Loaded at runtime from GitHub Release via jsDelivr CDN) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/applied-tape-mechanics/bff-ui@v1.0.0/css/bff-theme.css">
+  <style>
+    .tag-badge {
+      display: inline-block;
+      background: #1e3a5f;
+      color: #ffffff;
+      border: 1px solid #000000;
+      box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.35), inset -1px -1px 0 rgba(0, 0, 0, 0.4);
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-family: var(--font-mono, 'JetBrains Mono', monospace);
+      font-weight: bold;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+    .comp-pill {
+      display: inline-block;
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #777777;
+      box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #cccccc;
+      padding: 2px 7px;
+      border-radius: 3px;
+      font-family: var(--font-mono, 'JetBrains Mono', monospace);
+      font-size: 11px;
+      font-weight: 600;
+      margin: 2px;
+    }
+    .comp-pill:hover {
+      background: #f0f4ff;
+      border-color: #335588;
+    }
+    .table-container {
+      background: #ffffff;
+      border: 1px solid #888888;
+      box-shadow: inset 1px 1px 0 #888888, 1px 1px 0 #ffffff;
+      margin-top: 6px;
+      overflow-x: auto;
+    }
+    .table-container table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+    .table-container th {
+      background: linear-gradient(to bottom, #f0f0f0 0%, #dddddd 100%);
+      padding: 6px 10px;
+      color: #000000;
+      font-weight: bold;
+      border-bottom: 1px solid #888888;
+      border-right: 1px solid #cccccc;
+      font-size: 11px;
+    }
+    .table-container th:last-child {
+      border-right: none;
+    }
+    .table-container td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      border-right: 1px solid #f1f5f9;
+      vertical-align: middle;
+      color: #000000;
+      background: #ffffff;
+    }
+    .table-container tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+    .table-container td:last-child {
+      border-right: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge-bar">
+        <span class="pulse-dot"></span>
+        <span>Brainfuck Microservice Engine (64k VM)</span>
+      </div>
+      <h1>UN/EDIFACT to JSON Parser</h1>
+      <p class="subtitle">Real-time delimiter streaming state machine compiled in Brainfuck</p>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">EDIFACT Input Stream</div>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Delimiters: + : ' ?</span>
+        </div>
+        <div class="presets">
+          <span style="font-size:0.75rem; color:var(--text-muted); margin-right:4px; align-self:center;">Presets:</span>
+          <button class="preset-btn" onclick="loadPreset(1)">Invoice (BGM+DTM)</button>
+          <button class="preset-btn" onclick="loadPreset(2)">Purchase Order</button>
+          <button class="preset-btn" onclick="loadPreset(3)">Escaped Delimiters</button>
+        </div>
+        <textarea id="edifactInput" placeholder="Enter UN/EDIFACT message here, e.g.:&#10;BGM+380+1285264'&#10;DTM+137:20261001:102'&#10;UNT+2+1'"></textarea>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="parseEDIFACT()">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+            Parse with Brainfuck
+          </button>
+          <button class="btn btn-secondary" onclick="clearInput()">Clear</button>
+          <button class="btn btn-secondary" onclick="viewBfCode()" style="margin-left:auto;">
+            Inspect BF Code
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Parsed JSON Output</div>
+          <button class="preset-btn" onclick="copyJSON()">Copy JSON</button>
+        </div>
+        <pre class="output-view" id="jsonOutput">/* Parsed JSON will appear here */</pre>
+        <div class="stats-bar">
+          <div class="stat-pill">Segments: <span id="statSegments">0</span></div>
+          <div class="stat-pill">Characters: <span id="statChars">0</span></div>
+          <div class="stat-pill">Status: <span id="statStatus" style="color:var(--text-muted);">Idle</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="previewCard" style="display:none; margin-top: 1.5rem;">
+      <div class="card-header">
+        <div class="card-title">Segment Breakdown Visualizer</div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 120px;">Segment</th>
+              <th>Data Elements & Components</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shared Applied Tape Mechanics Runtime & UI Kit (Loaded at runtime from GitHub Release via jsDelivr CDN) -->
+  <script src="https://cdn.jsdelivr.net/gh/applied-tape-mechanics/bff-interpreter@v1.0.0/bff-interpreter.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/applied-tape-mechanics/bff-ui@v1.0.0/js/bff-ui.js"></script>
+  <script>
+    const BF_CODE = __BF_CODE__;
+    const presets = {
+      1: "BGM+380+1285264'DTM+137:20261001:102'UNT+2+1'",
+      2: "UNH+1+ORDERS:D:96A:UN'BGM+220+ORD9932+9'NAD+BY+BUYER001:160:ZZ'LIN+1++ITEM100:EN'QTY+21:500'UNT+6+1'",
+      3: "BGM+380?+TEST+1234'DTM+137:2026?::102'UNT+2+1'"
+    };
+
+    function loadPreset(n) {
+      document.getElementById('edifactInput').value = presets[n];
+      parseEDIFACT();
+    }
+
+    function clearInput() {
+      document.getElementById('edifactInput').value = '';
+      document.getElementById('jsonOutput').innerText = '/* Parsed JSON will appear here */';
+      document.getElementById('statSegments').innerText = '0';
+      document.getElementById('statChars').innerText = '0';
+      document.getElementById('statStatus').innerText = 'Idle';
+      document.getElementById('statStatus').style.color = 'var(--text-muted)';
+      document.getElementById('previewCard').style.display = 'none';
+    }
+
+    async function parseEDIFACT() {
+      const input = document.getElementById('edifactInput').value;
+      if (!input.trim()) {
+        clearInput();
+        return;
+      }
+
+      const statusEl = document.getElementById('statStatus');
+      statusEl.innerText = 'Parsing (Brainfuck)...';
+      statusEl.style.color = 'var(--cyan)';
+
+      // If backend API is detected, try Fastify endpoint
+      if (window.BffUI && BffUI.api && BffUI.api.detected) {
+        try {
+          const response = await fetch('/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ edifact: input })
+          });
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || 'Parsing error');
+          }
+
+          const data = await response.json();
+          const jsonFormatted = JSON.stringify(data, null, 2);
+          document.getElementById('jsonOutput').innerText = jsonFormatted;
+          document.getElementById('statSegments').innerText = data.segment_count || (data.segments ? data.segments.length : 0);
+          document.getElementById('statChars').innerText = data.character_count || input.length;
+          statusEl.innerText = 'Success (API)';
+          statusEl.style.color = 'var(--success)';
+
+          renderTable(data.segments || []);
+          return;
+        } catch (err) {
+          console.warn('Backend API request failed, executing via client JS VM:', err);
+        }
+      }
+
+      // Standalone client-side Brainfuck execution (pure JS VM)
+      try {
+        let cleaned = input.trim();
+        if (!cleaned.endsWith("'")) {
+          cleaned += "'";
+        }
+        const rawJson = BffUI.runBrainfuck(BF_CODE, cleaned);
+        const parsed = JSON.parse(rawJson);
+        const segments = parsed.segments || [];
+        const data = {
+          segments,
+          raw_edifact: cleaned,
+          segment_count: segments.length,
+          character_count: cleaned.length
+        };
+        const jsonFormatted = JSON.stringify(data, null, 2);
+        document.getElementById('jsonOutput').innerText = jsonFormatted;
+        document.getElementById('statSegments').innerText = data.segment_count;
+        document.getElementById('statChars').innerText = data.character_count;
+        statusEl.innerText = 'Success (Client JS VM)';
+        statusEl.style.color = 'var(--success)';
+
+        renderTable(segments);
+      } catch (err) {
+        document.getElementById('jsonOutput').innerText = 'Error: ' + err.message;
+        statusEl.innerText = 'Failed';
+        statusEl.style.color = 'var(--danger)';
+        document.getElementById('previewCard').style.display = 'none';
+      }
+    }
+
+    function renderTable(segments) {
+      const previewCard = document.getElementById('previewCard');
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+
+      if (!segments || segments.length === 0) {
+        previewCard.style.display = 'none';
+        return;
+      }
+
+      segments.forEach(seg => {
+        const row = document.createElement('tr');
+        const nameCell = document.createElement('td');
+        nameCell.innerHTML = `<span class="tag-badge">${seg.name}</span>`;
+        row.appendChild(nameCell);
+
+        const elemCell = document.createElement('td');
+        if (seg.elements && seg.elements.length > 0) {
+          seg.elements.forEach(elemArray => {
+            const group = document.createElement('span');
+            group.style.marginRight = '12px';
+            group.style.display = 'inline-block';
+            elemArray.forEach(comp => {
+              const compSpan = document.createElement('span');
+              compSpan.className = 'comp-pill';
+              compSpan.innerText = comp;
+              group.appendChild(compSpan);
+            });
+            elemCell.appendChild(group);
+          });
+        } else {
+          elemCell.innerHTML = '<span style="color:var(--text-muted);font-style:italic;">No elements</span>';
+        }
+        row.appendChild(elemCell);
+        tbody.appendChild(row);
+      });
+
+      previewCard.style.display = 'block';
+    }
+
+    function copyJSON() {
+      const text = document.getElementById('jsonOutput').innerText;
+      if (window.BffUI) {
+        BffUI.copyToClipboard(text, 'Parsed JSON');
+      } else {
+        navigator.clipboard.writeText(text).then(() => alert('JSON copied to clipboard!'));
+      }
+    }
+
+    async function viewBfCode() {
+      let title = 'UN/EDIFACT to JSON Parser (edifact_parser.bf)';
+      let code = BF_CODE;
+
+      if (window.BffUI && BffUI.api && BffUI.api.detected) {
+        try {
+          const res = await fetch('/bf');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.title) title = data.title;
+            if (data.code) code = data.code;
+          }
+        } catch (e) {
+          // Fall back to inlined BF_CODE
+        }
+      }
+
+      if (window.BffUI) {
+        BffUI.showBfModal(
+          title,
+          code,
+          `Instruction count: ${code.length.toLocaleString()} instructions`
+        );
+      } else {
+        alert(`${title} (${code.length} instructions)`);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadPreset(1);
+    });
+  </script>
+</body>
+</html>
