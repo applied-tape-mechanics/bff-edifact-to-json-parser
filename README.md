@@ -3,7 +3,7 @@
 > **[Applied Tape Mechanics](https://github.com/applied-tape-mechanics)** — *Empirical computation and discrete field dynamics on minimal linear substrates.*
 > *Enterprise-grade cloud microservices—except the core business logic is pure Brainfuck. Best Friends Forever (`BFF`) with the most hostile programming language ever created.*
 
-A streaming **UN/EDIFACT** standard syntax parser implemented as a pure Brainfuck state machine ([`bf/edifact_parser.bf`](bf/edifact_parser.bf)), served by a TypeScript [Fastify](https://fastify.dev) REST API with OpenAPI/Swagger documentation, an interactive Web UI, and Docker containerization.
+A streaming **UN/EDIFACT** standard syntax parser implemented as a pure Brainfuck state machine ([`bf/edifact_parser.bf`](bf/edifact_parser.bf)). Try the **[Live Interactive Demo on GitHub Pages](https://applied-tape-mechanics.github.io/bff-edifact-to-json-parser/)** (running 100% client-side in your browser via the JavaScript Brainfuck VM), or run the full TypeScript [Fastify](https://fastify.dev) microservice locally/in Docker for the REST API and interactive OpenAPI/Swagger documentation (`/docs`).
 
 ---
 
